@@ -1,0 +1,62 @@
+[
+  {
+    "q": "The updated guidelines will be ___ starting next Monday.",
+    "choices": [
+      "effective",
+      "discretionary",
+      "negligible",
+      "incidental"
+    ],
+    "answer": 0,
+    "ex": "'effective starting' = 発効する/適用開始の定型コロケーション。",
+    "ja": "来週月曜から改訂ガイドラインが有効になります。"
+  },
+  {
+    "q": "The manager will ___ more resources to the security audit.",
+    "choices": [
+      "emulate",
+      "alleviate",
+      "allocate",
+      "delegate"
+    ],
+    "answer": 2,
+    "ex": "allocate A to B: 資源をBに割り当てる。",
+    "ja": "部長はセキュリティ監査により多くのリソースを割り当てます。"
+  },
+  {
+    "q": "Due to an administrative ___, the invoice was sent twice.",
+    "choices": [
+      "outlook",
+      "overuse",
+      "oversight",
+      "overcast"
+    ],
+    "answer": 2,
+    "ex": "administrative oversight: 事務的な見落とし。",
+    "ja": "事務的な見落としにより請求書が二重送信された。"
+  },
+  {
+    "q": "Please prepare a ___ plan in case of a system outage.",
+    "choices": [
+      "commodity",
+      "competency",
+      "consistency",
+      "contingency"
+    ],
+    "answer": 3,
+    "ex": "contingency plan: 代替・緊急時対応計画。",
+    "ja": "システム停止に備えて予備計画を用意してください。"
+  },
+  {
+    "q": "The new tool will ___ our deployment pipeline.",
+    "choices": [
+      "undermine",
+      "procrastinate",
+      "reconcile",
+      "streamline"
+    ],
+    "answer": 3,
+    "ex": "streamline: 合理化する。",
+    "ja": "新ツールはデプロイのパイプラインを合理化する。"
+  }
+]

@@ -68,7 +68,9 @@
 
     <div class="row card hidden" id="editor">
       <div class="kicker">Editor</div>
-      <p class="pill" style="margin:0 0 8px">編集して「Apply」で保存。/ ImportでJSON読み込み。</p>
+      <p class="pill" style="margin:0 0 8px">編集して「Apply」で保存。/ ImportでJSON読み込み。<br>
+      フォーマット: <code>[{"q":"…","choices":["A","B","C","D"],"answer":0,"ex":"解説","ja":"日本語"}]</code><br>
+      拡張: <code>choices</code> は <code>[{t:"語",note:"なぜ×/○か"},…]</code> 形式でもOK。解答後に各選択肢の説明を表示します。</p>
       <textarea id="editArea"></textarea>
       <div class="grid2" style="margin-top:10px;">
         <button id="btnApply">Apply</button>
@@ -104,9 +106,18 @@
   el('version').textContent = VERSION;
 
   const defaultQuestions = [
-    { q: 'The updated guidelines will be ___ starting next Monday.', choices: ['effective','discretionary','negligible','incidental'], answer: 0, ex: "'effective starting' = 発効する/適用開始の定型コロケーション。", ja: '来週月曜から改訂ガイドラインが有効になります。' },
-    { q: 'The manager will ___ more resources to the security audit.', choices: ['emulate','alleviate','allocate','delegate'], answer: 2, ex: 'allocate A to B: 資源をBに割り当てる。', ja: '部長はセキュリティ監査により多くのリソースを割り当てます。' },
-    { q: 'Please prepare a ___ plan in case of a system outage.', choices: ['commodity','competency','consistency','contingency'], answer: 3, ex: 'contingency plan: 代替・緊急時対応計画。', ja: 'システム停止に備えて予備計画を用意してください。' }
+    { q: 'The updated guidelines will be ___ starting next Monday.', choices: [
+        { t:'effective', note: '正：発効（be effective starting）という定型コロケーション。' },
+        { t:'discretionary', note: '裁量の；文脈的に「開始」を修飾しない。' },
+        { t:'negligible', note: '無視できる程度の→数量の大小に使うことが多い。' },
+        { t:'incidental', note: '付随的な→「開始」と結びつきにくい。' }
+      ], answer: 0, ex: "'be effective starting + 日付' は告知文で頻出。", ja: '来週月曜から有効になります。' },
+    { q: 'The manager will ___ more resources to the security audit.', choices: [
+        { t:'emulate', note:'模倣する→資源配分とは結びつかない。' },
+        { t:'alleviate', note:'（苦痛・負担を）和らげる→目的語が合わない。' },
+        { t:'allocate', note:'正：allocate A to B（AをBに割り当てる）。' },
+        { t:'delegate', note:'（権限・仕事を）委譲する→resources を目的語に取りにくい。' }
+      ], answer: 2, ex: 'allocate resources to the audit で自然。', ja: '監査にリソースを追加配分。' }
   ];
 
   let state = { i:0, q:[], tts:false, answered:false };
@@ -122,7 +133,15 @@
       return true; } catch(_) { return false; }
   }
 
-  function normalize(arr){ return arr.map(o=>({ q:o.q, choices:o.choices, answer:o.answer, ex:o.ex||'', ja:o.ja||'' })); }
+  function normalize(arr){
+    return arr.map(o=>({
+      q: o.q,
+      choices: (o.choices||[]).map(c=> typeof c === 'string' ? { t:c, note:'' } : { t:(c.t||c.text||''), note:(c.note||c.explain||'') }),
+      answer: o.answer,
+      ex: o.ex||'',
+      ja: o.ja||''
+    }));
+  }
 
   async function fetchJSON(url){
     const res = await fetch(url, {cache:'no-cache'});
@@ -151,7 +170,7 @@
     const c = el('choices'); c.innerHTML='';
     item.choices.forEach((choice, idx)=>{
       const btn=document.createElement('button'); btn.className='choice'; btn.setAttribute('data-idx', idx);
-      btn.innerHTML=`<span class="label">${String.fromCharCode(65+idx)}</span><span>${choice}</span>`;
+      btn.innerHTML=`<span class="label">${String.fromCharCode(65+idx)}</span><span>${choice.t}</span>`;
       btn.addEventListener('click',()=>select(idx)); c.appendChild(btn);
     });
     el('bar').style.width = ((state.i)/total)*100+'%';
@@ -163,8 +182,17 @@
   function select(idx){
     if (state.answered) return; state.answered=true;
     const item = state.q[state.i];
-    document.querySelectorAll('.choice').forEach((b,i)=>{
-      b.classList.remove('correct','wrong'); if (i===item.answer) b.classList.add('correct'); if (i===idx && i!==item.answer) b.classList.add('wrong');
+    const nodes = [...document.querySelectorAll('.choice')];
+    nodes.forEach((b,i)=>{
+      b.classList.remove('correct','wrong');
+      if (i===item.answer) b.classList.add('correct');
+      if (i===idx && i!==item.answer) b.classList.add('wrong');
+      const note = item.choices[i]?.note || '';
+      if (note){
+        const n = document.createElement('div');
+        n.className = 'expl'; n.style.marginLeft='38px'; n.textContent = (i===item.answer?'✓ ':'• ')+ note;
+        b.insertAdjacentElement('afterend', n);
+      }
     });
     const letters=['A','B','C','D'];
     el('explain').innerHTML = `<b>${idx===item.answer?'✅ Correct':'❌ Incorrect'}</b> — Answer: <b>${letters[item.answer]}</b><br>${item.ex}` + (item.ja?`<br><i>${item.ja}</i>`:'');
@@ -178,7 +206,7 @@
 
   // ======== TTS =========
   function speak(text, lang='en-US'){ try{ const u=new SpeechSynthesisUtterance(text); u.lang=lang; u.rate=1.0; u.pitch=1.0; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(_){} }
-  function speakQuestion(item){ speak(item.q + ' Choices: ' + item.choices.map((c,i)=>String.fromCharCode(65+i)+'. '+c).join(', ')); }
+  function speakQuestion(item){ speak(item.q + ' Choices: ' + item.choices.map((c,i)=>String.fromCharCode(65+i)+'. '+c.t).join(', ')); }
   function speakExplain(item, correct){ speak((correct? 'Correct. ':'Incorrect. ') + 'Answer is ' + String.fromCharCode(65+item.answer) + '. ' + (item.ex||'')); }
 
   // ======== Editor / Import / Export =========

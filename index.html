@@ -57,7 +57,7 @@
     <div class="row card" id="quiz">
       <div class="kicker" id="kicker">Question</div>
       <div class="qtext" id="qtext">Loading…</div>
-      <div class="qja" id="qja"></div>
+      <div class="qja hidden" id="qja"></div>
       <div class="choices" id="choices"></div>
       <div class="expl hidden" id="explain"></div>
       <div class="footer">
@@ -89,8 +89,9 @@
   </div>
 
   <script>
-  const VERSION = 'v1.5';
+  const VERSION = 'v1.6';
   const el=id=>document.getElementById(id);
+  el('version').textContent=VERSION;
 
   function normalize(arr){
     return arr.map(o=>({
@@ -109,8 +110,10 @@
     const item=state.q[state.i];
     el('kicker').textContent=`Question ${state.i+1} / ${state.q.length}`;
     el('qtext').textContent=item.q;
+    // 日本語訳は初期状態では隠す
     el('qja').textContent='';
-    el('qja').classList.add('hidden')
+    el('qja').classList.add('hidden');
+
     const c=el('choices'); c.innerHTML='';
     item.choices.forEach((choice,idx)=>{
       const btn=document.createElement('button');
@@ -128,6 +131,8 @@
   function select(idx){
     if(state.answered) return; state.answered=true;
     const item=state.q[state.i];
+
+    // 正誤表示 + 各選択肢のnote
     [...document.querySelectorAll('.choice')].forEach((b,i)=>{
       b.classList.remove('correct','wrong');
       if(i===item.answer) b.classList.add('correct');
@@ -140,11 +145,14 @@
         b.insertAdjacentElement('afterend',n);
       }
     });
+
     const letters=['A','B','C','D'];
     el('explain').innerHTML=`<b>${idx===item.answer?'✅ Correct':'❌ Incorrect'}</b> — Answer: <b>${letters[item.answer]}</b><br>${item.ex}`;
     el('explain').classList.remove('hidden');
-    const jaText = item.ja || '';
-    if (jaText) { el('qja').textContent = jaText; el('qja').classList.remove('hidden'); }
+
+    // ★ここで初めて日本語訳を表示★
+    const jaText=item.ja||'';
+    if(jaText){ el('qja').textContent=jaText; el('qja').classList.remove('hidden'); }
   }
 
   function next(){state.i=Math.min(state.i+1,state.q.length-1);render();}
@@ -155,7 +163,6 @@
   document.getElementById('btnAdvance').onclick=next;
 
   document.getElementById('btnShuffle').onclick=()=>{shuffle(state.q);state.i=0;render();};
-
   function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
 
   document.getElementById('btnExport').onclick=()=>{

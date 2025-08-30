@@ -19,12 +19,13 @@
     .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:var(--shadow)}
     .kicker{color:var(--yellow);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
     .qtext{font-size:20px;line-height:1.35}
+    .qja{margin-top:6px;color:var(--muted);font-size:16px}
     .choices{display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px}
     .choice{display:flex;gap:10px;align-items:center;background:var(--btn);border:1px solid var(--border);padding:14px;border-radius:14px;font-size:18px;text-align:left}
     .choice .label{width:28px;height:28px;border-radius:999px;display:grid;place-items:center;background:#11151c;border:1px solid var(--border);font-weight:600}
     .choice.correct{outline:2px solid var(--green)}
     .choice.wrong{outline:2px solid var(--red)}
-    .expl{margin-top:10px;color:var(--muted);font-size:15px}
+    .expl{margin-top:6px;color:var(--muted);font-size:14px}
     .footer{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px}
     .progress{height:10px;width:100%;background:#12151c;border:1px solid var(--border);border-radius:999px;overflow:hidden}
     .bar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#9effa2)}
@@ -41,22 +42,22 @@
     <header>
       <h1>TOEIC Tap Quiz <span class="pill" id="version"></span></h1>
       <div class="controls">
-        <button id="btnPrev" title="Previous (◀)">◀</button>
-        <button id="btnNext" title="Next (▶)">▶</button>
-        <button id="btnShuffle" title="Shuffle questions">Shuffle</button>
-        <button id="btnSpeak" title="Toggle TTS">🔊 TTS</button>
-        <button id="btnExport" title="Export questions JSON">Export</button>
+        <button id="btnPrev">◀</button>
+        <button id="btnNext">▶</button>
+        <button id="btnShuffle">Shuffle</button>
+        <button id="btnSpeak">🔊 TTS</button>
+        <button id="btnExport">Export</button>
         <label class="file">Import <input id="fileInput" type="file" accept="application/json" class="hidden"></label>
         <button id="btnEdit">Edit</button>
         <button id="btnSource">Set Source</button>
         <button id="btnRefresh">Refresh</button>
-        <button id="btnInstall" class="hidden">Install</button>
       </div>
     </header>
 
     <div class="row card" id="quiz">
       <div class="kicker" id="kicker">Question</div>
       <div class="qtext" id="qtext">Loading…</div>
+      <div class="qja" id="qja"></div>
       <div class="choices" id="choices"></div>
       <div class="expl hidden" id="explain"></div>
       <div class="footer">
@@ -68,9 +69,8 @@
 
     <div class="row card hidden" id="editor">
       <div class="kicker">Editor</div>
-      <p class="pill" style="margin:0 0 8px">編集して「Apply」で保存。/ ImportでJSON読み込み。<br>
-      フォーマット: <code>[{"q":"…","choices":["A","B","C","D"],"answer":0,"ex":"解説","ja":"日本語"}]</code><br>
-      拡張: <code>choices</code> は <code>[{t:"語",note:"なぜ×/○か"},…]</code> 形式でもOK。解答後に各選択肢の説明を表示します。</p>
+      <p class="pill">編集して「Apply」で保存。/ ImportでJSON読み込み。<br>
+      choices は文字列配列 ["A","B",…] でも、オブジェクト配列 [{t:"A",note:"説明"},…] でもOK。後者なら解答後に各選択肢の説明が表示されます。</p>
       <textarea id="editArea"></textarea>
       <div class="grid2" style="margin-top:10px;">
         <button id="btnApply">Apply</button>
@@ -80,186 +80,104 @@
 
     <div class="row card hidden" id="sourcePanel">
       <div class="kicker">Live Source URL</div>
-      <p class="pill">毎朝ここに固定URLを入れておけば、<b>Refresh</b>で最新を取得できます（例: GitHub PagesやGistのJSON）。</p>
       <input id="srcInput" type="url" placeholder="https://example.com/quiz.json" />
       <div class="grid2" style="margin-top:10px;">
         <button id="btnSaveSrc">Save Source</button>
         <button id="btnCloseSrc">Close</button>
       </div>
-      <details style="margin-top:10px;">
-        <summary>JSONを直接ペーストして更新</summary>
-        <textarea id="pasteArea" placeholder='[ {"q":"…","choices":["A","B","C","D"],"answer":0,"ex":"…","ja":"…"} ]'></textarea>
-        <div class="grid2" style="margin-top:10px;">
-          <button id="btnApplyPaste">Apply Pasted JSON</button>
-          <span></span>
-        </div>
-      </details>
     </div>
-
-    <p class="pill" style="margin-top:12px;">Tip: ホーム画面に追加でオフライン実行（PWA対応）。</p>
   </div>
 
   <script>
-  // ======== Data & State =========
-  const VERSION = 'v1.2';
-  const el = (id) => document.getElementById(id);
-  el('version').textContent = VERSION;
-
-  const defaultQuestions = [
-    { q: 'The updated guidelines will be ___ starting next Monday.', choices: [
-        { t:'effective', note: '正：発効（be effective starting）という定型コロケーション。' },
-        { t:'discretionary', note: '裁量の；文脈的に「開始」を修飾しない。' },
-        { t:'negligible', note: '無視できる程度の→数量の大小に使うことが多い。' },
-        { t:'incidental', note: '付随的な→「開始」と結びつきにくい。' }
-      ], answer: 0, ex: "'be effective starting + 日付' は告知文で頻出。", ja: '来週月曜から有効になります。' },
-    { q: 'The manager will ___ more resources to the security audit.', choices: [
-        { t:'emulate', note:'模倣する→資源配分とは結びつかない。' },
-        { t:'alleviate', note:'（苦痛・負担を）和らげる→目的語が合わない。' },
-        { t:'allocate', note:'正：allocate A to B（AをBに割り当てる）。' },
-        { t:'delegate', note:'（権限・仕事を）委譲する→resources を目的語に取りにくい。' }
-      ], answer: 2, ex: 'allocate resources to the audit で自然。', ja: '監査にリソースを追加配分。' }
-  ];
-
-  let state = { i:0, q:[], tts:false, answered:false };
-  const KEY = 'toeic_tap_quiz_v12';
-
-  function saveLocal() {
-    const payload = { q: state.q, i: state.i, tts: state.tts, src: localStorage.getItem(KEY+'_src')||'' };
-    localStorage.setItem(KEY, JSON.stringify(payload));
-  }
-  function loadLocal() {
-    try { const raw = localStorage.getItem(KEY); if (!raw) return false; const data = JSON.parse(raw);
-      if (Array.isArray(data.q)) state.q = data.q; if (typeof data.i==='number') state.i=data.i; if (typeof data.tts==='boolean') state.tts=data.tts; if (data.src) localStorage.setItem(KEY+'_src', data.src);
-      return true; } catch(_) { return false; }
-  }
+  const VERSION = 'v1.4';
+  const el=id=>document.getElementById(id);
 
   function normalize(arr){
     return arr.map(o=>({
-      q: o.q,
-      choices: (o.choices||[]).map(c=> typeof c === 'string' ? { t:c, note:'' } : { t:(c.t||c.text||''), note:(c.note||c.explain||'') }),
-      answer: o.answer,
-      ex: o.ex||'',
-      ja: o.ja||''
+      q:o.q,
+      choices:(o.choices||[]).map(c=> typeof c==="string" ? {t:c,note:''} : {t:c.t||c.text||'',note:c.note||c.explain||''}),
+      answer:o.answer,
+      ex:o.ex||'',
+      ja:o.ja||''
     }));
   }
 
-  async function fetchJSON(url){
-    const res = await fetch(url, {cache:'no-cache'});
-    if (!res.ok) throw new Error('HTTP '+res.status);
-    const arr = await res.json();
-    if (!Array.isArray(arr)) throw new Error('JSON must be an array');
-    return normalize(arr);
-  }
+  let state={i:0,q:[],answered:false};
 
-  async function loadFromURLParam(){
-    const params = new URLSearchParams(location.search);
-    const src = params.get('src');
-    if (!src) return null; try { return await fetchJSON(src); } catch(e){ console.error(e); return null; }
-  }
-
-  async function loadFromSavedSource(){
-    const src = localStorage.getItem(KEY+'_src'); if (!src) return null; try{ return await fetchJSON(src); } catch(e){ console.error(e); return null; }
-  }
-
-  // ======== Rendering =========
   function render(){
-    const total = state.q.length; if (!total) return;
-    const item = state.q[state.i];
-    el('kicker').textContent = `Question ${state.i+1} / ${total}`;
-    el('qtext').textContent = item.q;
-    const c = el('choices'); c.innerHTML='';
-    item.choices.forEach((choice, idx)=>{
-      const btn=document.createElement('button'); btn.className='choice'; btn.setAttribute('data-idx', idx);
+    if(!state.q.length) return;
+    const item=state.q[state.i];
+    el('kicker').textContent=`Question ${state.i+1} / ${state.q.length}`;
+    el('qtext').textContent=item.q;
+    const ja=item.ja||'';
+    el('qja').textContent=ja;
+    if(ja){el('qja').classList.remove('hidden')}else{el('qja').classList.add('hidden')}
+    const c=el('choices'); c.innerHTML='';
+    item.choices.forEach((choice,idx)=>{
+      const btn=document.createElement('button');
+      btn.className='choice'; btn.setAttribute('data-idx',idx);
       btn.innerHTML=`<span class="label">${String.fromCharCode(65+idx)}</span><span>${choice.t}</span>`;
-      btn.addEventListener('click',()=>select(idx)); c.appendChild(btn);
+      btn.addEventListener('click',()=>select(idx));
+      c.appendChild(btn);
     });
-    el('bar').style.width = ((state.i)/total)*100+'%';
-    el('meta').textContent = `${state.i+1}/${total}`;
+    el('bar').style.width=(state.i/state.q.length*100)+'%';
+    el('meta').textContent=`${state.i+1}/${state.q.length}`;
     el('explain').classList.add('hidden');
     state.answered=false;
   }
 
   function select(idx){
-    if (state.answered) return; state.answered=true;
-    const item = state.q[state.i];
-    const nodes = [...document.querySelectorAll('.choice')];
-    nodes.forEach((b,i)=>{
+    if(state.answered) return; state.answered=true;
+    const item=state.q[state.i];
+    [...document.querySelectorAll('.choice')].forEach((b,i)=>{
       b.classList.remove('correct','wrong');
-      if (i===item.answer) b.classList.add('correct');
-      if (i===idx && i!==item.answer) b.classList.add('wrong');
-      const note = item.choices[i]?.note || '';
-      if (note){
-        const n = document.createElement('div');
-        n.className = 'expl'; n.style.marginLeft='38px'; n.textContent = (i===item.answer?'✓ ':'• ')+ note;
-        b.insertAdjacentElement('afterend', n);
+      if(i===item.answer) b.classList.add('correct');
+      if(i===idx && i!==item.answer) b.classList.add('wrong');
+      const note=item.choices[i]?.note||'';
+      if(note){
+        const n=document.createElement('div');
+        n.className='expl';
+        n.textContent=(i===item.answer?'✓ ':'• ')+note;
+        b.insertAdjacentElement('afterend',n);
       }
     });
     const letters=['A','B','C','D'];
-    el('explain').innerHTML = `<b>${idx===item.answer?'✅ Correct':'❌ Incorrect'}</b> — Answer: <b>${letters[item.answer]}</b><br>${item.ex}` + (item.ja?`<br><i>${item.ja}</i>`:'');
+    el('explain').innerHTML=`<b>${idx===item.answer?'✅ Correct':'❌ Incorrect'}</b> — Answer: <b>${letters[item.answer]}</b><br>${item.ex}`;
     el('explain').classList.remove('hidden');
-    if (state.tts) speakExplain(item, idx===item.answer);
-    saveLocal();
   }
 
-  function next(){ state.i = Math.min(state.i+1, state.q.length-1); render(); saveLocal(); }
-  function prev(){ state.i = Math.max(state.i-1, 0); render(); saveLocal(); }
+  function next(){state.i=Math.min(state.i+1,state.q.length-1);render();}
+  function prev(){state.i=Math.max(state.i-1,0);render();}
 
-  // ======== TTS =========
-  function speak(text, lang='en-US'){ try{ const u=new SpeechSynthesisUtterance(text); u.lang=lang; u.rate=1.0; u.pitch=1.0; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(_){} }
-  function speakQuestion(item){ speak(item.q + ' Choices: ' + item.choices.map((c,i)=>String.fromCharCode(65+i)+'. '+c.t).join(', ')); }
-  function speakExplain(item, correct){ speak((correct? 'Correct. ':'Incorrect. ') + 'Answer is ' + String.fromCharCode(65+item.answer) + '. ' + (item.ex||'')); }
+  document.getElementById('btnNext').onclick=next;
+  document.getElementById('btnPrev').onclick=prev;
+  document.getElementById('btnAdvance').onclick=next;
 
-  // ======== Editor / Import / Export =========
-  function openEditor(){ el('editor').classList.remove('hidden'); el('quiz').classList.add('hidden'); el('sourcePanel').classList.add('hidden'); el('editArea').value = JSON.stringify(state.q, null, 2); }
-  function closeEditor(){ el('editor').classList.add('hidden'); el('quiz').classList.remove('hidden'); }
-  function exportJSON(){ const blob = new Blob([JSON.stringify(state.q, null, 2)], {type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='toeic_quiz.json'; a.click(); URL.revokeObjectURL(url); }
-  function importJSON(file){ const r=new FileReader(); r.onload=()=>{ try{ const arr=JSON.parse(r.result); if(!Array.isArray(arr)) throw new Error('Array expected'); state.q=normalize(arr); state.i=0; closeEditor(); render(); saveLocal(); }catch(e){ alert('Invalid JSON: '+e.message);} }; r.readAsText(file); }
+  document.getElementById('btnShuffle').onclick=()=>{shuffle(state.q);state.i=0;render();};
 
-  // ======== Source (URL / paste) =========
-  function openSource(){ el('sourcePanel').classList.remove('hidden'); el('quiz').classList.add('hidden'); el('editor').classList.add('hidden'); el('srcInput').value = localStorage.getItem(KEY+'_src')||''; }
-  function closeSource(){ el('sourcePanel').classList.add('hidden'); el('quiz').classList.remove('hidden'); }
-  async function refresh(){
-    const src = localStorage.getItem(KEY+'_src'); if (!src) { alert('Source URL is not set. Use Set Source.'); return; }
-    try { const arr = await fetchJSON(src); state.q = arr; state.i = 0; render(); saveLocal(); alert('Questions updated.'); }
-    catch(e){ alert('Failed to refresh: '+e.message); }
-  }
+  function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
 
-  // ======== PWA minimal SW =========
-  let deferredPrompt=null; window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredPrompt=e; el('btnInstall').classList.remove('hidden'); });
-  el('btnInstall').addEventListener('click', async ()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt=null; el('btnInstall').classList.add('hidden'); });
-  if ('serviceWorker' in navigator){ const swCode=`self.addEventListener('install',e=>{e.waitUntil(caches.open('toeic-quiz-v12').then(c=>c.addAll(['./'])));self.skipWaiting()});self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim())});self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{const copy=res.clone();caches.open('toeic-quiz-v12').then(c=>c.put(e.request,copy)).catch(()=>{});return res}).catch(()=>caches.match('./'))))});`; const blob=new Blob([swCode],{type:'text/javascript'}); const url=URL.createObjectURL(blob); navigator.serviceWorker.register(url).catch(console.warn); }
+  document.getElementById('btnExport').onclick=()=>{
+    const blob=new Blob([JSON.stringify(state.q,null,2)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='quiz.json'; a.click();
+  };
 
-  // ======== Events =========
-  el('btnNext').addEventListener('click', next);
-  el('btnPrev').addEventListener('click', prev);
-  el('btnAdvance').addEventListener('click', next); // manual advance only
-  el('btnShuffle').addEventListener('click', ()=>{ shuffle(state.q); state.i=0; render(); saveLocal(); });
-  el('btnSpeak').addEventListener('click', ()=>{ state.tts=!state.tts; el('btnSpeak').textContent = state.tts ? '🔇 TTS' : '🔊 TTS'; saveLocal(); });
-  el('btnExport').addEventListener('click', exportJSON);
-  el('btnEdit').addEventListener('click', openEditor);
-  el('btnCancel').addEventListener('click', closeEditor);
-  el('btnApply').addEventListener('click', ()=>{ try{ const arr=JSON.parse(el('editArea').value); if(!Array.isArray(arr)) throw new Error('Array expected'); state.q=normalize(arr); state.i=0; closeEditor(); render(); saveLocal(); }catch(e){ alert('Invalid JSON: '+e.message); } });
-  el('fileInput').addEventListener('change', (e)=>{ const f=e.target.files?.[0]; if(f) importJSON(f); e.target.value=''; });
-  el('btnSource').addEventListener('click', openSource);
-  el('btnCloseSrc').addEventListener('click', closeSource);
-  el('btnSaveSrc').addEventListener('click', ()=>{ const v=el('srcInput').value.trim(); if(!v) { alert('URL required'); return; } localStorage.setItem(KEY+'_src', v); alert('Saved. Use Refresh to update.'); });
-  el('btnApplyPaste').addEventListener('click', ()=>{ try{ const arr=JSON.parse(el('pasteArea').value); if(!Array.isArray(arr)) throw new Error('Array expected'); state.q=normalize(arr); state.i=0; closeSource(); render(); saveLocal(); }catch(e){ alert('Invalid JSON: '+e.message); } });
+  document.getElementById('fileInput').addEventListener('change',e=>{const f=e.target.files[0];if(f){const r=new FileReader();r.onload=()=>{state.q=normalize(JSON.parse(r.result));state.i=0;render();};r.readAsText(f);} });
 
-  document.addEventListener('keydown', (e)=>{
-    if (e.key==='ArrowRight') next(); if (e.key==='ArrowLeft') prev();
-    if (['1','2','3','4','a','b','c','d','A','B','C','D'].includes(e.key)) { const map={'1':0,'2':1,'3':2,'4':3,'a':0,'b':1,'c':2,'d':3,'A':0,'B':1,'C':2,'D':3}; const idx=map[e.key]; const btn=document.querySelector(`.choice[data-idx="${idx}"]`); if(btn) btn.click(); }
-  });
+  document.getElementById('btnEdit').onclick=()=>{el('editor').classList.remove('hidden');el('quiz').classList.add('hidden');el('editArea').value=JSON.stringify(state.q,null,2);};
+  document.getElementById('btnCancel').onclick=()=>{el('editor').classList.add('hidden');el('quiz').classList.remove('hidden');};
+  document.getElementById('btnApply').onclick=()=>{try{state.q=normalize(JSON.parse(el('editArea').value));state.i=0;render();el('editor').classList.add('hidden');el('quiz').classList.remove('hidden');}catch(e){alert('Invalid JSON');}};
 
-  function shuffle(arr){ for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+  document.getElementById('btnSource').onclick=()=>{el('sourcePanel').classList.remove('hidden');el('quiz').classList.add('hidden');};
+  document.getElementById('btnCloseSrc').onclick=()=>{el('sourcePanel').classList.add('hidden');el('quiz').classList.remove('hidden');};
+  document.getElementById('btnSaveSrc').onclick=()=>{localStorage.setItem('quiz_src',el('srcInput').value.trim());alert('Saved');};
+  document.getElementById('btnRefresh').onclick=async()=>{
+    const src=localStorage.getItem('quiz_src'); if(!src) return alert('No source URL');
+    const res=await fetch(src+"?"+Date.now());
+    state.q=normalize(await res.json());state.i=0;render();
+  };
 
-  // ======== Boot =========
-  (async function boot(){
-    const urlData = await loadFromURLParam();
-    const hadLocal = loadLocal();
-    const savedData = await loadFromSavedSource();
-    state.q = normalize(urlData || savedData || (hadLocal ? state.q : defaultQuestions));
-    render();
-  })();
+  (async()=>{const src=localStorage.getItem('quiz_src');if(src){try{const res=await fetch(src);state.q=normalize(await res.json());render();}catch(_){}}})();
   </script>
 </body>
 </html>

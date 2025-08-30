@@ -89,7 +89,7 @@
   </div>
 
   <script>
-  const VERSION = 'v1.6';
+  const VERSION = 'v1.7';
   const el=id=>document.getElementById(id);
   el('version').textContent=VERSION;
 
@@ -110,7 +110,7 @@
     const item=state.q[state.i];
     el('kicker').textContent=`Question ${state.i+1} / ${state.q.length}`;
     el('qtext').textContent=item.q;
-    // 日本語訳は初期状態では隠す
+    // Always hide JP translation until a selection is made
     el('qja').textContent='';
     el('qja').classList.add('hidden');
 
@@ -131,8 +131,6 @@
   function select(idx){
     if(state.answered) return; state.answered=true;
     const item=state.q[state.i];
-
-    // 正誤表示 + 各選択肢のnote
     [...document.querySelectorAll('.choice')].forEach((b,i)=>{
       b.classList.remove('correct','wrong');
       if(i===item.answer) b.classList.add('correct');
@@ -145,12 +143,11 @@
         b.insertAdjacentElement('afterend',n);
       }
     });
-
     const letters=['A','B','C','D'];
     el('explain').innerHTML=`<b>${idx===item.answer?'✅ Correct':'❌ Incorrect'}</b> — Answer: <b>${letters[item.answer]}</b><br>${item.ex}`;
     el('explain').classList.remove('hidden');
 
-    // ★ここで初めて日本語訳を表示★
+    // Show JP translation now
     const jaText=item.ja||'';
     if(jaText){ el('qja').textContent=jaText; el('qja').classList.remove('hidden'); }
   }

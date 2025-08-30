@@ -89,7 +89,7 @@
   </div>
 
   <script>
-  const VERSION = 'v1.4';
+  const VERSION = 'v1.5';
   const el=id=>document.getElementById(id);
 
   function normalize(arr){
@@ -109,9 +109,8 @@
     const item=state.q[state.i];
     el('kicker').textContent=`Question ${state.i+1} / ${state.q.length}`;
     el('qtext').textContent=item.q;
-    const ja=item.ja||'';
-    el('qja').textContent=ja;
-    if(ja){el('qja').classList.remove('hidden')}else{el('qja').classList.add('hidden')}
+    el('qja').textContent='';
+    el('qja').classList.add('hidden')
     const c=el('choices'); c.innerHTML='';
     item.choices.forEach((choice,idx)=>{
       const btn=document.createElement('button');
@@ -144,6 +143,8 @@
     const letters=['A','B','C','D'];
     el('explain').innerHTML=`<b>${idx===item.answer?'✅ Correct':'❌ Incorrect'}</b> — Answer: <b>${letters[item.answer]}</b><br>${item.ex}`;
     el('explain').classList.remove('hidden');
+    const jaText = item.ja || '';
+    if (jaText) { el('qja').textContent = jaText; el('qja').classList.remove('hidden'); }
   }
 
   function next(){state.i=Math.min(state.i+1,state.q.length-1);render();}
